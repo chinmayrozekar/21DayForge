@@ -20,9 +20,9 @@ So I built 21DayForge for myself. And now it's free for you too. No subscription
 - **Dark Mode** - Full support for light, dark, and system appearance
 - **iPad & Mac** - Adaptive layout with sidebar navigation on larger screens
 
-## Screenshots
+## Demo
 
-*Coming soon*
+<video src="https://github.com/chinmayrozekar/21DayForge/raw/main/media/demo.mp4" width="300"></video>
 
 ## Requirements
 
