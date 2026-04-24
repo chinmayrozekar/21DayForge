@@ -24,6 +24,13 @@ So I built 21DayForge for myself. And now it's free for you too. No subscription
 
 <video src="https://github.com/chinmayrozekar/21DayForge/raw/main/media/demo.mp4" width="300"></video>
 
+## Screenshots
+
+| | | |
+|:---:|:---:|:---:|
+| <img src="media/screenshot-1.png" width="150"> | <img src="media/screenshot-2.png" width="150"> | <img src="media/screenshot-3.png" width="150"> |
+| <img src="media/screenshot-4.png" width="150"> | <img src="media/screenshot-5.png" width="150"> | <img src="media/screenshot-6.jpg" width="150"> |
+
 ## Requirements
 
 - iOS 18.0+ / macOS 15.0+
