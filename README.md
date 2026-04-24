@@ -20,10 +20,6 @@ So I built 21DayForge for myself. And now it's free for you too. No subscription
 - **Dark Mode** - Full support for light, dark, and system appearance
 - **iPad & Mac** - Adaptive layout with sidebar navigation on larger screens
 
-## Demo
-
-<video src="https://github.com/chinmayrozekar/21DayForge/raw/main/media/demo.mp4" width="300"></video>
-
 ## Screenshots
 
 | | | |
@@ -36,6 +32,9 @@ So I built 21DayForge for myself. And now it's free for you too. No subscription
 - iOS 18.0+ / macOS 15.0+
 - Xcode 16.0+
 - An Apple ID (free)
+
+## Full Disclaimer :
+- I am providing the App for free, Sorry I do not have the budget to host it on Apple Store for $99/year. Hence you may have to reinstall the app after every 7 days. I know its a pain, but these are the compromises we need to live with. 
 
 ## Installation
 
