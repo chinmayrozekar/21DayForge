@@ -11,6 +11,9 @@ import SwiftData
 struct ContentView: View {
 
     @AppStorage("appearance") private var appearance: String = Appearance.system.rawValue
+    @AppStorage("userName") private var userName: String = ""
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @State private var showOnboarding: Bool = false
 
     private var selectedAppearance: Appearance {
         Appearance(rawValue: appearance) ?? .system
@@ -23,16 +26,22 @@ struct ContentView: View {
     var body: some View {
         Group {
             #if os(iOS)
-            if horizontalSizeClass == .compact {
-                CompactNavigationView()
-            } else {
+            if horizontalSizeClass == .regular {
                 SidebarNavigationView()
+            } else {
+                CompactNavigationView()
             }
             #else
             SidebarNavigationView()
             #endif
         }
         .preferredColorScheme(selectedAppearance.colorScheme)
+        .onAppear {
+            showOnboarding = !hasCompletedOnboarding
+        }
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding, userName: $userName)
+        }
     }
 }
 
@@ -44,7 +53,7 @@ struct SidebarNavigationView: View {
 
     var body: some View {
         NavigationSplitView {
-            ChallengeListView(selectedChallenge: $selectedChallenge)
+            ChallengeListView(selectedChallenge: $selectedChallenge, showSettingsButton: true)
         } detail: {
             if let challenge = selectedChallenge {
                 ChallengeDetailView(challenge: challenge)
@@ -65,9 +74,13 @@ struct CompactNavigationView: View {
 
     var body: some View {
         TabView {
+            Tab("Today", systemImage: "sun.max.fill") {
+                TodayView()
+            }
+
             Tab("Challenges", systemImage: "flame") {
                 NavigationStack {
-                    ChallengeListView(selectedChallenge: .constant(nil))
+                    ChallengeListView(selectedChallenge: .constant(nil), showSettingsButton: false)
                 }
             }
 

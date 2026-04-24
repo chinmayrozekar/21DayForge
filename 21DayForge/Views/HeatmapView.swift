@@ -18,7 +18,6 @@ struct HeatmapView: View {
     private let calendar = Calendar.current
     private let dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""]
 
-    /// Aggregated completions per calendar date.
     private var completionMap: [Date: Int] {
         var map: [Date: Int] = [:]
         for challenge in challenges {
@@ -32,13 +31,10 @@ struct HeatmapView: View {
         return map
     }
 
-    /// The grid of weeks (columns) x days (rows), starting from `weeksToShow` weeks ago.
     private var weeks: [[Date]] {
         let today = calendar.startOfDay(for: .now)
-
-        // Find the most recent Sunday (start of the current week column)
         let weekday = calendar.component(.weekday, from: today)
-        let daysToSubtract = weekday - 1 // Sunday = 1
+        let daysToSubtract = weekday - 1
         guard let currentWeekStart = calendar.date(byAdding: .day, value: -daysToSubtract, to: today) else {
             return []
         }
@@ -60,7 +56,7 @@ struct HeatmapView: View {
     }
 
     /// Month labels positioned at the first week where that month starts.
-    private var monthLabels: [(String, Int)] {
+    private func calculateMonthLabels(weeks: [[Date]]) -> [(String, Int)] {
         var labels: [(String, Int)] = []
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM"
@@ -78,6 +74,10 @@ struct HeatmapView: View {
     }
 
     var body: some View {
+        let currentCompletionMap = completionMap
+        let currentWeeks = weeks
+        let currentMonthLabels = calculateMonthLabels(weeks: currentWeeks)
+
         VStack(alignment: .leading, spacing: 8) {
             Text("Activity")
                 .font(.headline)
@@ -92,7 +92,7 @@ struct HeatmapView: View {
                     let totalWidth = geo.size.width
                     let columnWidth = totalWidth / CGFloat(weeksToShow)
 
-                    ForEach(monthLabels, id: \.1) { label, weekIndex in
+                    ForEach(currentMonthLabels, id: \.1) { label, weekIndex in
                         Text(label)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -119,11 +119,11 @@ struct HeatmapView: View {
 
                 // Heatmap cells
                 HStack(spacing: cellSpacing) {
-                    ForEach(0..<weeks.count, id: \.self) { weekIndex in
+                    ForEach(0..<currentWeeks.count, id: \.self) { weekIndex in
                         VStack(spacing: cellSpacing) {
                             ForEach(0..<7, id: \.self) { dayIndex in
-                                let date = weeks[weekIndex][dayIndex]
-                                let count = completionMap[date] ?? 0
+                                let date = currentWeeks[weekIndex][dayIndex]
+                                let count = currentCompletionMap[date] ?? 0
                                 let isFuture = date > calendar.startOfDay(for: .now)
 
                                 RoundedRectangle(cornerRadius: 2)

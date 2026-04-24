@@ -15,7 +15,25 @@ struct StatsView: View {
 
     private let calendar = Calendar.current
 
+    private var completionDates: Set<Date> {
+        var dates: Set<Date> = []
+        for challenge in challenges {
+            for (index, completed) in challenge.dailyStatus.enumerated() where completed {
+                if let date = calendar.date(byAdding: .day, value: index, to: challenge.startDate) {
+                    dates.insert(calendar.startOfDay(for: date))
+                }
+            }
+        }
+        return dates
+    }
+
     var body: some View {
+        let dates = completionDates
+        let current = calculateCurrentStreak(dates: dates)
+        let longest = calculateLongestStreak(dates: dates)
+        let active = challenges.filter { $0.status == .active }
+        let completed = challenges.filter { $0.status == .completed }
+
         ScrollView {
             if challenges.isEmpty {
                 ContentUnavailableView(
@@ -26,7 +44,7 @@ struct StatsView: View {
                 .padding(.top, 60)
             } else {
                 VStack(spacing: 20) {
-                    summaryCards
+                    summaryCards(current: current, longest: longest, activeCount: active.count, completedCount: completed.count)
                     HeatmapView(challenges: challenges)
                     challengeBreakdown
                 }
@@ -34,43 +52,41 @@ struct StatsView: View {
             }
         }
         .navigationTitle("Stats")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Summary Cards
 
-    private var summaryCards: some View {
-        let active = challenges.filter { !$0.isComplete }
-        let completed = challenges.filter { $0.isComplete }
-
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+    private func summaryCards(current: Int, longest: Int, activeCount: Int, completedCount: Int) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             StatCard(
                 title: "Current Streak",
-                value: "\(currentStreak)",
-                unit: "days",
+                value: "\(current)",
+                unit: current == 1 ? "day" : "days",
                 icon: "flame.fill",
                 color: .orange
             )
 
             StatCard(
                 title: "Longest Streak",
-                value: "\(longestStreak)",
-                unit: "days",
+                value: "\(longest)",
+                unit: longest == 1 ? "day" : "days",
                 icon: "trophy.fill",
                 color: .yellow
             )
 
             StatCard(
                 title: "Active",
-                value: "\(active.count)",
-                unit: active.count == 1 ? "challenge" : "challenges",
+                value: "\(activeCount)",
+                unit: activeCount == 1 ? "challenge" : "challenges",
                 icon: "figure.run",
                 color: .blue
             )
 
             StatCard(
                 title: "Completed",
-                value: "\(completed.count)",
-                unit: completed.count == 1 ? "challenge" : "challenges",
+                value: "\(completedCount)",
+                unit: completedCount == 1 ? "challenge" : "challenges",
                 icon: "checkmark.seal.fill",
                 color: .green
             )
@@ -80,35 +96,56 @@ struct StatsView: View {
     // MARK: - Challenge Breakdown
 
     private var challengeBreakdown: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 12) {
             Text("Challenges")
                 .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             ForEach(challenges) { challenge in
                 HStack(spacing: 12) {
-                    // Mini progress ring
-                    ZStack {
-                        Circle()
-                            .stroke(Color.secondary.opacity(0.2), lineWidth: 3)
-
-                        Circle()
-                            .trim(from: 0, to: challenge.progress)
-                            .stroke(
-                                challenge.isComplete ? Color.green : Color.accentColor,
-                                style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
+                    // Quick-log toggle
+                    Button {
+                        withAnimation(.spring(duration: 0.3, bounce: 0.4)) {
+                            challenge.toggleToday()
+                        }
+                    } label: {
+                        Image(systemName: challenge.isTodayCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundStyle(challenge.isTodayCompleted ? .green : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
                     }
-                    .frame(width: 32, height: 32)
+                    .buttonStyle(.plain)
+                    .disabled(!challenge.isTodayActionable)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(challenge.title)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                        HStack(spacing: 6) {
+                            Text(challenge.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
 
-                        Text("\(challenge.completedDays)/21 days completed")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            // Status pill
+                            if challenge.status != .active {
+                                Text(challenge.status.label)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(statusPillColor(challenge.status).opacity(0.15), in: Capsule())
+                                    .foregroundStyle(statusPillColor(challenge.status))
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            Text("\(challenge.completedDays)/21 days")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            if challenge.currentStreak > 1 {
+                                Label("\(challenge.currentStreak)", systemImage: "flame.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
                     }
 
                     Spacer()
@@ -124,25 +161,31 @@ struct StatsView: View {
         }
     }
 
+    private func statusPillColor(_ status: ChallengeStatus) -> Color {
+        switch status {
+        case .upcoming:  .blue
+        case .active:    .orange
+        case .completed: .green
+        case .expired:   .secondary
+        }
+    }
+
     // MARK: - Streak Calculations
 
-    /// Current streak: consecutive days (ending today or yesterday) with at least one completion.
-    private var currentStreak: Int {
-        let completionDates = allCompletionDates()
-        guard !completionDates.isEmpty else { return 0 }
+    private func calculateCurrentStreak(dates: Set<Date>) -> Int {
+        guard !dates.isEmpty else { return 0 }
 
         let today = calendar.startOfDay(for: .now)
         var streak = 0
         var checkDate = today
 
-        // Allow starting from today or yesterday
-        if !completionDates.contains(checkDate) {
+        if !dates.contains(checkDate) {
             if let yesterday = calendar.date(byAdding: .day, value: -1, to: checkDate) {
                 checkDate = yesterday
             }
         }
 
-        while completionDates.contains(checkDate) {
+        while dates.contains(checkDate) {
             streak += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
             checkDate = previous
@@ -151,9 +194,8 @@ struct StatsView: View {
         return streak
     }
 
-    /// Longest streak of consecutive days with at least one completion.
-    private var longestStreak: Int {
-        let sortedDates = allCompletionDates().sorted()
+    private func calculateLongestStreak(dates: Set<Date>) -> Int {
+        let sortedDates = dates.sorted()
         guard !sortedDates.isEmpty else { return 0 }
 
         var longest = 1
@@ -167,23 +209,9 @@ struct StatsView: View {
             } else if daysBetween > 1 {
                 current = 1
             }
-            // daysBetween == 0 means same day, skip
         }
 
         return longest
-    }
-
-    /// Set of unique dates that have at least one challenge completion.
-    private func allCompletionDates() -> Set<Date> {
-        var dates: Set<Date> = []
-        for challenge in challenges {
-            for (index, completed) in challenge.dailyStatus.enumerated() where completed {
-                if let date = calendar.date(byAdding: .day, value: index, to: challenge.startDate) {
-                    dates.insert(calendar.startOfDay(for: date))
-                }
-            }
-        }
-        return dates
     }
 }
 
@@ -199,15 +227,18 @@ struct StatCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                    .font(.title3)
-                Spacer()
-            }
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.title3)
 
-            Text(value)
-                .font(.system(.title, design: .rounded, weight: .bold))
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+
+                Text(unit)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Text(title)
                 .font(.caption)

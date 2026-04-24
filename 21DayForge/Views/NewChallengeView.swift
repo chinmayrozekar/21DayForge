@@ -19,6 +19,14 @@ struct NewChallengeView: View {
 
     @FocusState private var titleFieldFocused: Bool
 
+    private var isStartingInPast: Bool {
+        Calendar.current.startOfDay(for: startDate) < Calendar.current.startOfDay(for: .now)
+    }
+
+    private var isStartingInFuture: Bool {
+        Calendar.current.startOfDay(for: startDate) > Calendar.current.startOfDay(for: .now)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -34,8 +42,10 @@ struct NewChallengeView: View {
                 } header: {
                     Text("Start Date")
                 } footer: {
-                    if Calendar.current.startOfDay(for: startDate) < Calendar.current.startOfDay(for: .now) {
+                    if isStartingInPast {
                         Text("Starting in the past lets you backfill missed days.")
+                    } else if isStartingInFuture {
+                        Text("This challenge will appear as \"Upcoming\" until \(startDate.formatted(.dateTime.month(.abbreviated).day())).")
                     }
                 }
 

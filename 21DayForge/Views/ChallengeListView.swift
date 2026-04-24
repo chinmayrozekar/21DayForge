@@ -15,11 +15,17 @@ struct ChallengeListView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Binding var selectedChallenge: Challenge?
+
+    /// When false, the settings gear is hidden (iPhone already has a Settings tab).
+    var showSettingsButton: Bool = true
+
     @State private var showingNewChallenge = false
     @State private var showingSettings = false
+    @State private var challengeToDelete: Challenge?
+    @State private var challengeToEdit: Challenge?
 
     var body: some View {
-        List(selection: $selectedChallenge) {
+        List {
             if challenges.isEmpty {
                 ContentUnavailableView(
                     "Start Your Journey",
@@ -31,14 +37,29 @@ struct ChallengeListView: View {
                     NavigationLink(value: challenge) {
                         ChallengeRow(challenge: challenge)
                     }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            challengeToDelete = challenge
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            challengeToEdit = challenge
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
+                    }
                 }
-                .onDelete(perform: deleteChallenges)
             }
         }
         .navigationDestination(for: Challenge.self) { challenge in
             ChallengeDetailView(challenge: challenge)
         }
         .navigationTitle("21DayForge")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -48,11 +69,13 @@ struct ChallengeListView: View {
                 }
             }
 
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
+            if showSettingsButton {
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
                 }
             }
         }
@@ -69,11 +92,28 @@ struct ChallengeListView: View {
                     }
             }
         }
-    }
-
-    private func deleteChallenges(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(challenges[index])
+        .sheet(item: $challengeToEdit) { challenge in
+            EditChallengeView(challenge: challenge)
+        }
+        .confirmationDialog(
+            "Delete Challenge",
+            isPresented: Binding(
+                get: { challengeToDelete != nil },
+                set: { if !$0 { challengeToDelete = nil } }
+            ),
+            presenting: challengeToDelete
+        ) { challenge in
+            Button("Delete \"\(challenge.title)\"", role: .destructive) {
+                withAnimation {
+                    modelContext.delete(challenge)
+                    if selectedChallenge?.persistentModelID == challenge.persistentModelID {
+                        selectedChallenge = nil
+                    }
+                }
+                challengeToDelete = nil
+            }
+        } message: { challenge in
+            Text("This will permanently delete the challenge and all \(challenge.completedDays) days of progress. This can't be undone.")
         }
     }
 }
@@ -86,42 +126,74 @@ struct ChallengeRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Day counter circle
-            ZStack {
-                Circle()
-                    .stroke(challenge.isComplete ? Color.green : Color.accentColor, lineWidth: 3)
-                    .frame(width: 44, height: 44)
-
-                Circle()
-                    .trim(from: 0, to: challenge.progress)
-                    .stroke(challenge.isComplete ? Color.green : Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: 44, height: 44)
-                    .rotationEffect(.degrees(-90))
-
-                Text("\(challenge.currentDay)")
-                    .font(.system(.body, design: .rounded, weight: .bold))
-                    .foregroundStyle(challenge.isComplete ? .green : .primary)
+            // Quick-log toggle — .borderless prevents NavigationLink from also firing
+            Button {
+                withAnimation(.spring(duration: 0.3, bounce: 0.4)) {
+                    challenge.toggleToday()
+                }
+            } label: {
+                Image(systemName: toggleIcon)
+                    .font(.title2)
+                    .foregroundStyle(toggleColor)
+                    .contentTransition(.symbolEffect(.replace))
             }
+            .buttonStyle(.borderless)
+            .disabled(!challenge.isTodayActionable)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(challenge.title)
                     .font(.headline)
                     .lineLimit(1)
 
-                Text(challenge.isComplete ? "Completed!" : "Day \(challenge.currentDay) of 21")
+                Text(subtitleText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            if challenge.isComplete {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-                    .font(.title3)
-            }
+            // Status badge
+            statusBadge
         }
         .padding(.vertical, 4)
+    }
+
+    private var toggleIcon: String {
+        switch challenge.status {
+        case .upcoming:  return "clock.circle"
+        case .active:    return challenge.isTodayCompleted ? "checkmark.circle.fill" : "circle"
+        case .completed: return "checkmark.seal.fill"
+        case .expired:   return "xmark.circle"
+        }
+    }
+
+    private var toggleColor: Color {
+        switch challenge.status {
+        case .upcoming:  return .blue
+        case .active:    return challenge.isTodayCompleted ? .green : .secondary
+        case .completed: return .green
+        case .expired:   return .secondary
+        }
+    }
+
+    private var subtitleText: String {
+        switch challenge.status {
+        case .upcoming:
+            return "Starts \(challenge.startDate.formatted(.dateTime.month(.abbreviated).day()))"
+        case .active:
+            return "Day \(challenge.currentDay) of 21"
+        case .completed:
+            return "Completed!"
+        case .expired:
+            return "\(challenge.completedDays)/21 — Expired"
+        }
+    }
+
+    @ViewBuilder
+    private var statusBadge: some View {
+        Text("\(challenge.completedDays)/21")
+            .font(.system(.caption, design: .rounded, weight: .semibold))
+            .foregroundStyle(.secondary)
     }
 }
 
