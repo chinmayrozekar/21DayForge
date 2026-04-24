@@ -64,7 +64,19 @@ Since this app isn't on the App Store (I'm not paying Apple $99/year for the pri
    - On your iPhone: **Settings > General > VPN & Device Management**
    - Tap your developer profile and tap **Trust**
 
-> **Note:** With a free Apple ID, you'll need to re-run from Xcode every 7 days to refresh the provisioning profile. Your data is never lost — it just needs re-signing.
+### What about the 7-day signing limit?
+
+With a free Apple ID, the provisioning profile expires every 7 days. Here's what that means in practice:
+
+- **Day 1–7:** App works perfectly.
+- **Day 8:** The app won't open (it crashes on launch). Plug your iPhone into your Mac, open Xcode, and press `Cmd + R` — takes about 30 seconds.
+- **Day 8–14:** Works perfectly again.
+- **Day 15:** Re-sign one more time.
+- **Day 15–21:** Finish your challenge.
+
+**Your data is never lost.** Re-installing from Xcode preserves all your challenges, streaks, and progress — iOS treats it as an update, not a fresh install. If you have iCloud sync enabled, your data is also backed up in CloudKit.
+
+So yes, you'll need to re-sign **twice** during a 21-day challenge. A small price for not paying $99/year.
 
 ## Tech Stack
 
