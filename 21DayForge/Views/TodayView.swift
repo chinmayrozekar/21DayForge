@@ -11,7 +11,6 @@ import SwiftData
 struct TodayView: View {
 
     @AppStorage("userName") private var userName: String = ""
-    @AppStorage("currentShlokaIndex") private var currentShlokaIndex: Int = 0
     @AppStorage("profileImageData") private var profileImageData: Data?
 
     @Query private var challenges: [Challenge]
@@ -37,7 +36,8 @@ struct TodayView: View {
     }
 
     private var todaysShloka: Shloka {
-        shlokaList[currentShlokaIndex % shlokaList.count]
+        let daysSinceEpoch = Calendar.current.dateComponents([.day], from: .distantPast, to: .now).day ?? 0
+        return shlokaList[daysSinceEpoch % shlokaList.count]
     }
 
     private var greeting: String {
