@@ -12,6 +12,7 @@ struct TodayView: View {
 
     @AppStorage("userName") private var userName: String = ""
     @AppStorage("profileImageData") private var profileImageData: Data?
+    @AppStorage("lastSignedDate") private var lastSignedDate: Double = 0
 
     @Query private var challenges: [Challenge]
 
@@ -40,6 +41,13 @@ struct TodayView: View {
         return shlokaList[daysSinceEpoch % shlokaList.count]
     }
 
+    private var daysUntilResign: Int {
+        guard lastSignedDate > 0 else { return 7 }
+        let signed = Date(timeIntervalSince1970: lastSignedDate)
+        let elapsed = Calendar.current.dateComponents([.day], from: signed, to: .now).day ?? 0
+        return max(0, 7 - elapsed)
+    }
+
     private var greeting: String {
         userName.isEmpty ? "Today" : "Hi, \(userName)"
     }
@@ -50,6 +58,10 @@ struct TodayView: View {
                 // Custom header — no NavigationStack needed
                 header
                     .padding(.top, 8)
+
+                if daysUntilResign <= 2 {
+                    resignBanner
+                }
 
                 if activeChallenges.isEmpty {
                     ContentUnavailableView(
@@ -86,6 +98,9 @@ struct TodayView: View {
         .onAppear {
             if uiImage == nil, let data = profileImageData {
                 uiImage = UIImage(data: data)
+            }
+            if lastSignedDate == 0 || daysUntilResign <= 0 {
+                lastSignedDate = Date.now.timeIntervalSince1970
             }
         }
     }
@@ -186,6 +201,28 @@ struct TodayView: View {
         .fontWeight(.medium)
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Re-sign Banner
+
+    private var resignBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title3)
+                .foregroundStyle(.yellow)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(daysUntilResign == 0 ? "Re-sign today!" : "Re-sign in \(daysUntilResign) day\(daysUntilResign == 1 ? "" : "s")")
+                    .font(.subheadline.bold())
+                Text("Connect to Mac and press Cmd+R in Xcode")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
